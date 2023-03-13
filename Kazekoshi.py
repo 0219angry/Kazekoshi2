@@ -4,6 +4,7 @@ from logging import (DEBUG, INFO, NOTSET, FileHandler, Formatter, StreamHandler,
 from datetime import datetime
 import configparser
 import discord
+from discord.ext import commands
 
 # bot token
 TOKEN = ""
@@ -34,7 +35,9 @@ logger = getLogger(__name__)
 try:
     config = configparser.ConfigParser()
     config.read("config.ini", encoding="UTF-8")
+
     DISCORD_TOKEN = config["DEFAULT"]["DISCORD_TOKEN"]
+    COMMAND_PREFIX = config["DEFAULT"]["COMMAND_PREFIX"]
 
 
 except:
@@ -43,11 +46,26 @@ except:
 
 
 intents = discord.Intents.default() 
-client = discord.Client(intents=intents)
+client = discord.Client(command_prefix=COMMAND_PREFIX, intents=intents)
 
 @client.event
 async def on_ready():
     logger.info("Kazekoshi v2.0 on ready")
+
+@client.command()
+async def help(ctx):
+    logger.info("requested command : help")
+
+
+@client.command()
+async def r(ctx):
+    logger.info("requested command : read")
+
+    if ctx.author.voice is None:
+        await ctx.channel.send("あなたはボイスチャンネルに接続していません")
+        logger.info(f"{ctx.author} is not connect voicechannel")
+        return
+    
 
 
 client.run(DISCORD_TOKEN)
