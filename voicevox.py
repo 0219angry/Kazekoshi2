@@ -5,12 +5,11 @@ from pprint import pprint
 core = VoicevoxCore(open_jtalk_dict_dir=Path("../open_jtalk_dic_utf_8-1.11"))
 # pprint(METAS)
 
-speaker_id = 3
 
-text = "ずんだもんなのだ。"
+def create_voice(msg,speaker_id):
+    if not core.is_model_loaded(speaker_id):
+        core.load_model(speaker_id)
+    wave_bytes = core.tts(msg,speaker_id)
+    with open("./temp/output.wav","wb") as f:
+      f.write(wave_bytes)
 
-if not core.is_model_loaded(speaker_id):
-  core.load_model(speaker_id)
-wave_bytes = core.tts(text,speaker_id)
-with open("output.wav","wb") as f:
-  f.write(wave_bytes)
