@@ -7,6 +7,8 @@ from collections import defaultdict, deque
 from logging import (DEBUG, INFO, NOTSET, FileHandler, Formatter, StreamHandler, basicConfig, getLogger)
 from datetime import datetime
 import configparser
+import json
+import re
 
 # Discord.py
 import discord
@@ -15,7 +17,7 @@ from discord.ext import commands
 
 # VOICEVOX
 from pathlib import Path
-from voicevox_core import VoicevoxCore
+from voicevox_core import VoicevoxCore, METAS
 
 logger = getLogger(__name__)
 
@@ -34,13 +36,23 @@ class VoiceVox:
             logger.exception("Not Found file : config.ini")
             sys.exit()
         
-        self.core = VoicevoxCore(open_jtalk_dict_dir=Path(self.OPEN_JTALK_DICT_DIR))
+        # voicevox_core
+        self.core = VoicevoxCore(open_jtalk_dict_dir=Path(self.OPEN_JTALK_DICT_DIR)) 
+        # 読み上げ中queue
         self.queue_dict = defaultdict(deque)
+        # userとspeakerの辞書 {userid:speakerid}
+        self.user_speaker_dict = {}
 
 
     # VOICEVOX function difinition
     def create_voice(self, msg: discord.Message, speaker_id: int, voice_client: discord.VoiceClient):
         msg_text = msg.content
+
+        if str(msg.author.id) not in list(self.user_speaker_dict.keys()):
+            self.add_user_speaker(msg.author, 3)
+        
+        speaker_id = int(self.user_speaker_dict[str(msg.author.id)])
+
         wavfilename = f"./temp/{datetime.now():%Y-%m-%d_%H%M%S}.wav"
         if not self.core.is_model_loaded(speaker_id):
             self.core.load_model(speaker_id)
@@ -71,3 +83,41 @@ class VoiceVox:
           return
         source = queue.popleft()
         voice_client.play(source, after=lambda e:self.play(voice_client, queue))
+
+    def add_user_speaker(self, member: discord.Member, id: int):
+        self.user_speaker_dict[member.id] = str(id)
+        with open(f"./json/{member.guild.id}_speakerid.json","w",encoding="UTF-8") as f:
+            f.write(json.dumps(self.user_speaker_dict, indent=4))
+        return
+    
+    def load_user_speaker_id(self, ctx: commands.Context):
+        if len(self.user_speaker_dict) == 0:
+            if os.path.isfile(f"./json/{ctx.guild.id}_speakerid.json"):
+                with open(f"./json/{ctx.guild.id}_speakerid.json","r",encoding="UTF-8") as f:
+                    self.user_speaker_dict = json.load(f)
+        logger.debug(self.user_speaker_dict)
+
+
+class Dropdown(discord.ui.Select):
+    def __init__(self, vv: VoiceVox):
+        self.vv = vv
+        options = []
+        for i in range(1,len(METAS)):
+            filtered = list(filter(lambda x: x.name=="ノーマル",METAS[i].styles))
+            if len(filtered) == 1:
+                options.append(discord.SelectOption(label=f"{METAS[i].name} : {filtered[0].id}"))
+        super().__init__(placeholder="初期設定はずんだもんです",min_values=1,max_values=1,options=options)
+
+
+    async def callback(self, interaction: discord.Interaction):
+        self.disabled = True
+        await interaction.response.edit_message(view=self.view)
+        await interaction.followup.send(f"{interaction.user.name}の読み上げは{self.values}です")
+        logger.info(f"{interaction.user.name}の読み上げは{self.values[0]}です")
+        speaker_id = re.findall(r"\d+",self.values[0])
+        self.vv.add_user_speaker(interaction.user,int(speaker_id[len(speaker_id)-1]))
+
+class DropdownView(discord.ui.View):
+    def __init__(self, vv: VoiceVox):
+        super().__init__()
+        self.add_item(Dropdown(vv))
