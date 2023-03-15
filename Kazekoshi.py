@@ -130,6 +130,33 @@ async def dc(ctx: commands.Context):
     await ctx.channel.send(embed=discon_embed)
     connected_channel.pop(ctx.guild)
     return
+
+@client.command()
+async def dict(ctx:commands.Context, *args):
+    vv.load_dictionary(ctx)
+    if len(args) == 0:
+        await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
+        return
+    elif len(args) == 1:
+        await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
+        return
+    elif len(args) == 2:
+        if args[0] == "del":
+            await vv.del_dictionary(ctx, args[1])
+            return
+        else:
+            await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
+            return
+    elif len(args) == 3:
+        if args[0] == "add":
+            await vv.add_dictionary(ctx, args[1], args[2])
+            return
+        else:
+            await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
+            return
+        
+
+    return
     
 @client.event
 async def on_message(message: discord.Message):

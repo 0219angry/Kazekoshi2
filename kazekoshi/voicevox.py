@@ -104,14 +104,19 @@ class VoiceVox:
             with open(f"./json/{ctx.guild.id}_dictionary.json","r",encoding="UTF-8") as f:
                 self.word_dict = json.load(f)
 
-    def add_dictionary(self,ctx: commands.Context, from_word: str, to_word: str):
+    async def add_dictionary(self,ctx: commands.Context, from_word: str, to_word: str):
         self.word_dict[from_word] = to_word
-        with open(f"./json/{ctx.guild.id}_dictionary.json","r",encoding="UTF-8") as f:
+        with open(f"./json/{ctx.guild.id}_dictionary.json","w",encoding="UTF-8") as f:
             f.write(json.dumps(self.word_dict,indent=4))
+        await ctx.channel.send(f"{ctx.author.mention} {from_word}の読みを{to_word}として登録しました")
         return
 
-    def del_dictionary(self, del_word: str):
-        pass
+    async def del_dictionary(self, ctx: commands.Context, del_word: str):
+        del self.word_dict[del_word]
+        with open(f"./json/{ctx.guild.id}_dictionary.json","w",encoding="UTF-8") as f:
+            f.write(json.dumps(self.word_dict,indent=4))
+        await ctx.channel.send(f"{ctx.author.mention} {del_word}の読みを削除しました")
+        return
 
 
 
