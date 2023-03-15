@@ -42,6 +42,8 @@ class VoiceVox:
         self.queue_dict = defaultdict(deque)
         # userとspeakerの辞書 {userid:speakerid}
         self.user_speaker_dict = {}
+        # dictionaryの辞書
+        self.word_dict = {}
 
 
     # VOICEVOX function difinition
@@ -96,6 +98,21 @@ class VoiceVox:
                 with open(f"./json/{ctx.guild.id}_speakerid.json","r",encoding="UTF-8") as f:
                     self.user_speaker_dict = json.load(f)
         logger.debug(self.user_speaker_dict)
+
+    def load_dictionary(self, ctx: commands.Context):
+        if os.path.isfile(f"./json/{ctx.guild.id}_dictionary.json"):
+            with open(f"./json/{ctx.guild.id}_dictionary.json","r",encoding="UTF-8") as f:
+                self.word_dict = json.load(f)
+
+    def add_dictionary(self,ctx: commands.Context, from_word: str, to_word: str):
+        self.word_dict[from_word] = to_word
+        with open(f"./json/{ctx.guild.id}_dictionary.json","r",encoding="UTF-8") as f:
+            f.write(json.dumps(self.word_dict,indent=4))
+        return
+
+    def del_dictionary(self, del_word: str):
+        pass
+
 
 
 class Dropdown(discord.ui.Select):
