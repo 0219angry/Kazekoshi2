@@ -88,30 +88,38 @@ async def help(ctx: commands.Context):
 @client.command()
 async def c(ctx: commands.Context, *args):
     logger.info("requested command : connect")
+    if len(args) == 0: # 引数がないとき
+        if ctx.author.voice is None:
+            await ctx.channel.send("あなたはボイスチャンネルに接続していません")
+            logger.info(f"{ctx.author} is not connected voice channel")
+            return
+        
+        global connected_channel
 
-    if ctx.author.voice is None:
-        await ctx.channel.send("あなたはボイスチャンネルに接続していません")
-        logger.info(f"{ctx.author} is not connected voice channel")
-        return
-    
-    global connected_channel
+        async def connect(ctx: commands.Context):
+            con_embed = discord.Embed(title="読み上げ開始")
+            con_embed.add_field(name="読み上げテキストチャンネル", value=f"{ctx.channel.name}", inline="false")
+            con_embed.add_field(name="読み上げボイスチャンネル", value=f"{ctx.author.voice.channel.name}",inline="false")
+            await ctx.channel.send(embed=con_embed)
 
-    async def connect(ctx: commands.Context):
-        con_embed = discord.Embed(title="読み上げ開始")
-        con_embed.add_field(name="読み上げテキストチャンネル", value=f"{ctx.channel.name}", inline="false")
-        con_embed.add_field(name="読み上げボイスチャンネル", value=f"{ctx.author.voice.channel.name}",inline="false")
-        await ctx.channel.send(embed=con_embed)
+            await ctx.author.voice.channel.connect()
 
-        await ctx.author.voice.channel.connect()
+            connected_channel[ctx.guild] = ctx.channel
 
-        connected_channel[ctx.guild] = ctx.channel
+            
+            vv.load_user_speaker_id(ctx)
+            logger.info(f"Start reading {ctx.channel.name} at {ctx.author.voice.channel.name}")
+        
+        if ctx.guild.voice_client is not None:
+            await ctx.guild.voice_client.disconnect()
+        
+        
+        await connect(ctx)
+    elif len(args) == 1 : # 引数が1個の時
+        if args[0] == "voice":
+            view = voicevox.DropdownView(vv)
+            await ctx.send("Voicesetを選んでください",view=view)
 
-        logger.info(f"Start reading {ctx.channel.name} at {ctx.author.voice.channel.name}")
-    
-    if ctx.guild.voice_client is not None:
-        await ctx.guild.voice_client.disconnect()
-    
-    await connect(ctx)
     return
 
 @client.command()
