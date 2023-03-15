@@ -130,6 +130,7 @@ async def dc(ctx: commands.Context):
     await ctx.channel.send(embed=discon_embed)
     connected_channel.pop(ctx.guild)
     return
+
     
 @client.event
 async def on_message(message: discord.Message):
