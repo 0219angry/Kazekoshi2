@@ -42,11 +42,17 @@ class VoiceVox:
         self.queue_dict = defaultdict(deque)
         # userとspeakerの辞書 {userid:speakerid}
         self.user_speaker_dict = {}
+        # 読み上げる文章
+        self.msg_text = ""
 
 
     # VOICEVOX function difinition
     def create_voice(self, msg: discord.Message, speaker_id: int, voice_client: discord.VoiceClient):
-        msg_text = msg.content
+        self.msg_text = msg.content
+
+        # 読み上げ用処理
+        self.replace_URL()
+        self.replace_mention(msg)
 
         if str(msg.author.id) not in list(self.user_speaker_dict.keys()):
             self.add_user_speaker(msg.author, 3)
@@ -56,13 +62,13 @@ class VoiceVox:
         wavfilename = f"./temp/{datetime.now():%Y-%m-%d_%H%M%S}.wav"
         if not self.core.is_model_loaded(speaker_id):
             self.core.load_model(speaker_id)
-        wave_bytes = self.core.tts(msg_text, speaker_id)
+        wave_bytes = self.core.tts(self.msg_text, speaker_id)
         
         with open(wavfilename,"wb") as f:
             f.write(wave_bytes)
         
         self.enqueue(voice_client, msg.guild, discord.FFmpegPCMAudio(wavfilename))
-        logger.info(f"メッセージ[{msg_text}]の読み上げ完了")
+        logger.info(f"メッセージ[{self.msg_text}]の読み上げ完了")
         
         wavlist = glob.glob("./temp/*.wav")
         wavlist.sort(reverse=False)
@@ -85,7 +91,7 @@ class VoiceVox:
         voice_client.play(source, after=lambda e:self.play(voice_client, queue))
 
     def add_user_speaker(self, member: discord.Member, id: int):
-        self.user_speaker_dict[member.id] = str(id)
+        self.user_speaker_dict[str(member.id)] = str(id)
         with open(f"./json/{member.guild.id}_speakerid.json","w",encoding="UTF-8") as f:
             f.write(json.dumps(self.user_speaker_dict, indent=4))
         return
@@ -96,13 +102,24 @@ class VoiceVox:
                 with open(f"./json/{ctx.guild.id}_speakerid.json","r",encoding="UTF-8") as f:
                     self.user_speaker_dict = json.load(f)
         logger.debug(self.user_speaker_dict)
+    
+    # 読み上げ用の処理
+    def replace_URL(self):
+        self.msg_text = re.sub(r"https?://.*?\s|https?://.*?$", "URL", self.msg_text)
 
+    def replace_mention(self, msg:discord.Message):
+        if "<@" and ">" in self.msg_text:
+            Temp = re.findall("<@!?([0-9]+)>", self.msg_text)
+            for i in range(len(Temp)):
+                Temp[i] = int(Temp[i])
+                user = msg.guild.get_member(Temp[i])
+                self.msg_text = re.sub(f"<@!?{Temp[i]}>", "アット" + user.display_name, self.msg_text)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, vv: VoiceVox):
         self.vv = vv
         options = []
-        for i in range(1,len(METAS)):
+        for i in range(0,len(METAS)):
             filtered = list(filter(lambda x: x.name=="ノーマル",METAS[i].styles))
             if len(filtered) == 1:
                 options.append(discord.SelectOption(label=f"{METAS[i].name} : {filtered[0].id}"))
