@@ -19,7 +19,7 @@ from voicevox_core import VoicevoxCore
 
 
 MAX_LOG_FILE = 5
-MAX_WAV_FILE = 5
+MAX_WAV_FILE = 10
 
 # create dir
 if not os.path.exists("log"):
@@ -31,6 +31,7 @@ if not os.path.exists("temp"):
 
 loglist = glob.glob("./log/*.log")
 
+loglist.sort(reverse=False)
 if len(loglist) > MAX_LOG_FILE:
     for i in range(len(loglist)-MAX_LOG_FILE):
         os.remove(loglist[i])
@@ -80,13 +81,14 @@ def create_voice(msg: discord.Message, speaker_id: int, voice_client: discord.Vo
         f.write(wave_bytes)
     
     enqueue(voice_client, msg.guild, discord.FFmpegPCMAudio(wavfilename))
+    logger.info(f"メッセージ[{msg_text}]の読み上げ完了")
     
     wavlist = glob.glob("./temp/*.wav")
-
-    # if len(wavlist) > MAX_WAV_FILE:
-    #     for i in range(len(wavlist)-MAX_WAV_FILE):
-    #         os.remove(wavlist[i])
-    # return
+    wavlist.sort(reverse=False)
+    if len(wavlist) > MAX_WAV_FILE:
+        for i in range(len(wavlist)-MAX_WAV_FILE):
+            os.remove(wavlist[i])
+    return
 
 
 def enqueue(voice_client: discord.VoiceClient, guild: discord.Guild, source: discord.FFmpegPCMAudio):
