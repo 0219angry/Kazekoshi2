@@ -17,6 +17,9 @@ from discord.ext import commands
 from pathlib import Path
 from voicevox_core import VoicevoxCore
 
+# my module
+import kazekoshi.global_val as g
+from kazekoshi import voicevox
 
 MAX_LOG_FILE = 5
 MAX_WAV_FILE = 10
@@ -58,6 +61,7 @@ try:
     DISCORD_TOKEN = config["DEFAULT"]["DISCORD_TOKEN"]
     COMMAND_PREFIX = config["DEFAULT"]["COMMAND_PREFIX"]
     SPEAKER_ID = int(config["DEFAULT"]["SPEAKER_ID"])
+    OPEN_JTALK_DICT_DIR = config["DEFAULT"]["OPEN_JTALK_DICT_DIR"]
 
 except:
     logger.exception("Not Found file : config.ini")
@@ -66,43 +70,10 @@ except:
 intents = discord.Intents.all() 
 client = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents, help_command=None)
 connected_channel = {}
-core = VoicevoxCore(open_jtalk_dict_dir=Path("../open_jtalk_dic_utf_8-1.11"))
+core = VoicevoxCore(open_jtalk_dict_dir=Path(OPEN_JTALK_DICT_DIR))
 queue_dict = defaultdict(deque)
 
-# VOICEVOX function difinition
-def create_voice(msg: discord.Message, speaker_id: int, voice_client: discord.VoiceClient):
-    msg_text = msg.content
-    wavfilename = f"./temp/{datetime.now():%Y-%m-%d_%H%M%S}.wav"
-    if not core.is_model_loaded(speaker_id):
-        core.load_model(speaker_id)
-    wave_bytes = core.tts(msg_text, speaker_id)
-    
-    with open(wavfilename,"wb") as f:
-        f.write(wave_bytes)
-    
-    enqueue(voice_client, msg.guild, discord.FFmpegPCMAudio(wavfilename))
-    logger.info(f"メッセージ[{msg_text}]の読み上げ完了")
-    
-    wavlist = glob.glob("./temp/*.wav")
-    wavlist.sort(reverse=False)
-    if len(wavlist) > MAX_WAV_FILE:
-        for i in range(len(wavlist)-MAX_WAV_FILE):
-            os.remove(wavlist[i])
-    return
-
-
-def enqueue(voice_client: discord.VoiceClient, guild: discord.Guild, source: discord.FFmpegPCMAudio):
-    queue = queue_dict[guild.id]
-    queue.append(source)
-    if not voice_client.is_playing():
-        play(voice_client, queue)
-
-def play(voice_client, queue):
-    if not queue or voice_client.is_playing():
-      return
-    source = queue.popleft()
-    voice_client.play(source, after=lambda e:play(voice_client, queue))
-
+vv = voicevox.VoiceVox()
 
 
 @client.event
@@ -115,7 +86,7 @@ async def help(ctx: commands.Context):
 
 
 @client.command()
-async def c(ctx: commands.Context):
+async def c(ctx: commands.Context, *args):
     logger.info("requested command : connect")
 
     if ctx.author.voice is None:
@@ -163,7 +134,7 @@ async def on_message(message: discord.Message):
         return
     
     if message.channel in connected_channel.values() and message.guild.voice_client is not None:
-        create_voice(message, SPEAKER_ID, message.guild.voice_client)
+        vv.create_voice(message, SPEAKER_ID, message.guild.voice_client)
 
 
     return
