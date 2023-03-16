@@ -50,6 +50,8 @@ class VoiceVox:
     def create_voice(self, msg: discord.Message, speaker_id: int, voice_client: discord.VoiceClient):
         msg_text = msg.content
 
+        self.replace_dictionary(msg)
+
         if str(msg.author.id) not in list(self.user_speaker_dict.keys()):
             self.add_user_speaker(msg.author, 3)
         
@@ -99,9 +101,9 @@ class VoiceVox:
                     self.user_speaker_dict = json.load(f)
         logger.debug(self.user_speaker_dict)
 
-    def load_dictionary(self, ctx: commands.Context):
-        if os.path.isfile(f"./json/{ctx.guild.id}_dictionary.json"):
-            with open(f"./json/{ctx.guild.id}_dictionary.json","r",encoding="UTF-8") as f:
+    def load_dictionary(self, guild: discord.guild):
+        if os.path.isfile(f"./json/{guild.id}_dictionary.json"):
+            with open(f"./json/{guild.id}_dictionary.json","r",encoding="UTF-8") as f:
                 self.word_dict = json.load(f)
 
     async def add_dictionary(self,ctx: commands.Context, from_word: str, to_word: str):
@@ -117,6 +119,15 @@ class VoiceVox:
             f.write(json.dumps(self.word_dict,indent=4))
         await ctx.channel.send(f"{ctx.author.mention} {del_word}の読みを削除しました")
         return
+    
+    def replace_dictionary(self, msg: discord.Message):
+        self.load_dictionary(msg.guild)
+        read_list=[]
+        for i, one_dic in enumerate(self.word_dict.items()):
+            self.msg_text = self.msg_text.replace(one_dic[0], '{'+str(i)+'}')
+            read_list.append(one_dic[1])
+        msg_text = msg_text.format(*read_list)
+
 
 
 
