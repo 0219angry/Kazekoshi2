@@ -39,16 +39,21 @@ class VoiceVox:
         # voicevox_core
         self.core = VoicevoxCore(open_jtalk_dict_dir=Path(self.OPEN_JTALK_DICT_DIR)) 
         # 読み上げ中queue
-        self.queue_dict = defaultdict(deque)
+        self.queue_dict_text = defaultdict(deque)
+        self.queue_dict_speaker = defaultdict(deque)
         # userとspeakerの辞書 {userid:speakerid}
         self.user_speaker_dict = {}
-        # dictionaryの辞書
-        self.word_dict = {}
+        # 読み上げる文章
+        self.msg_text = ""
 
 
     # VOICEVOX function difinition
-    def create_voice(self, msg: discord.Message, speaker_id: int, voice_client: discord.VoiceClient):
-        msg_text = msg.content
+    async def create_voice(self, msg: discord.Message, speaker_id: int, voice_client: discord.VoiceClient):
+        self.msg_text = msg.content
+
+        # 読み上げ用処理
+        self.replace_URL()
+        self.replace_mention(msg)
 
         self.replace_dictionary(msg)
 
@@ -57,16 +62,9 @@ class VoiceVox:
         
         speaker_id = int(self.user_speaker_dict[str(msg.author.id)])
 
-        wavfilename = f"./temp/{datetime.now():%Y-%m-%d_%H%M%S}.wav"
-        if not self.core.is_model_loaded(speaker_id):
-            self.core.load_model(speaker_id)
-        wave_bytes = self.core.tts(msg_text, speaker_id)
+        self.enqueue(voice_client, msg.guild, self.msg_text, speaker_id)
         
-        with open(wavfilename,"wb") as f:
-            f.write(wave_bytes)
-        
-        self.enqueue(voice_client, msg.guild, discord.FFmpegPCMAudio(wavfilename))
-        logger.info(f"メッセージ[{msg_text}]の読み上げ完了")
+        logger.info(f"メッセージ[{self.msg_text}]の読み上げ完了")
         
         wavlist = glob.glob("./temp/*.wav")
         wavlist.sort(reverse=False)
@@ -75,21 +73,38 @@ class VoiceVox:
                 os.remove(wavlist[i])
         return
 
+    def synthesize_voice(self, speaker_id: int):
+        wave_bytes = self.core.tts(self.msg_text, speaker_id)
+        return wave_bytes
 
-    def enqueue(self, voice_client: discord.VoiceClient, guild: discord.Guild, source: discord.FFmpegPCMAudio):
-        queue = self.queue_dict[guild.id]
-        queue.append(source)
+
+    def enqueue(self, voice_client: discord.VoiceClient, guild: discord.Guild, msg_text: str, speaker_id: int):
+        queue_text = self.queue_dict_text[guild.id]
+        queue_speaker = self.queue_dict_speaker[guild.id]
+        queue_text.append(msg_text)
+        queue_speaker.append(speaker_id)
         if not voice_client.is_playing():
-            self.play(voice_client, queue)
+            self.synthesize_play(voice_client, queue_text, queue_speaker)
 
-    def play(self, voice_client: discord.VoiceClient, queue: defaultdict):
-        if not queue or voice_client.is_playing():
+    def synthesize_play(self, voice_client: discord.VoiceClient, queue_text: deque, queue_speaker: deque):
+        if not queue_text or voice_client.is_playing():
           return
-        source = queue.popleft()
-        voice_client.play(source, after=lambda e:self.play(voice_client, queue))
+        text = queue_text.popleft()
+        speaker = queue_speaker.popleft()
+        
+        wavfilename = f"./temp/{datetime.now():%Y-%m-%d_%H%M%S}.wav"
+        if not self.core.is_model_loaded(speaker):
+            self.core.load_model(speaker)
+        wave_bytes = self.synthesize_voice(speaker)
+        
+        with open(wavfilename,"wb") as f:
+            f.write(wave_bytes)
+
+        source = discord.FFmpegPCMAudio(wavfilename)
+        voice_client.play(source, after=lambda e:self.synthesize_play(voice_client, queue_text, queue_speaker))
 
     def add_user_speaker(self, member: discord.Member, id: int):
-        self.user_speaker_dict[member.id] = str(id)
+        self.user_speaker_dict[str(member.id)] = str(id)
         with open(f"./json/{member.guild.id}_speakerid.json","w",encoding="UTF-8") as f:
             f.write(json.dumps(self.user_speaker_dict, indent=4))
         return
@@ -100,6 +115,10 @@ class VoiceVox:
                 with open(f"./json/{ctx.guild.id}_speakerid.json","r",encoding="UTF-8") as f:
                     self.user_speaker_dict = json.load(f)
         logger.debug(self.user_speaker_dict)
+    
+    # 読み上げ用の処理
+    def replace_URL(self):
+        self.msg_text = re.sub(r"https?://.*?\s|https?://.*?$", "URL", self.msg_text)
 
     def load_dictionary(self, guild: discord.guild):
         if os.path.isfile(f"./json/{guild.id}_dictionary.json"):
@@ -130,12 +149,19 @@ class VoiceVox:
 
 
 
+    def replace_mention(self, msg:discord.Message):
+        if "<@" and ">" in self.msg_text:
+            Temp = re.findall("<@!?([0-9]+)>", self.msg_text)
+            for i in range(len(Temp)):
+                Temp[i] = int(Temp[i])
+                user = msg.guild.get_member(Temp[i])
+                self.msg_text = re.sub(f"<@!?{Temp[i]}>", "アット" + user.display_name, self.msg_text)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, vv: VoiceVox):
         self.vv = vv
         options = []
-        for i in range(1,len(METAS)):
+        for i in range(0,len(METAS)):
             filtered = list(filter(lambda x: x.name=="ノーマル",METAS[i].styles))
             if len(filtered) == 1:
                 options.append(discord.SelectOption(label=f"{METAS[i].name} : {filtered[0].id}"))
