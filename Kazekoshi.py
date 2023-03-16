@@ -143,7 +143,7 @@ async def on_message(message: discord.Message):
         return
     
     if message.channel in connected_channel.values() and message.guild.voice_client is not None:
-        vv.create_voice(message, SPEAKER_ID, message.guild.voice_client)
+        await vv.create_voice(message, SPEAKER_ID, message.guild.voice_client)
 
 
     return
