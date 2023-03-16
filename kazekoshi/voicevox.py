@@ -55,6 +55,7 @@ class VoiceVox:
         # 読み上げ用処理
         self.replace_URL()
         self.replace_mention(msg)
+        self.replace_channel(msg)
 
         self.replace_dictionary(msg)
 
@@ -173,6 +174,14 @@ class VoiceVox:
             self.msg_text = self.msg_text.replace(one_dic[0], '{'+str(i)+'}')
             read_list.append(one_dic[1])
         self.msg_text = self.msg_text.format(*read_list)
+        
+    def replace_channel(self, msg:discord.Message):
+            if "<#" and ">" in self.msg_text:
+                Temp = re.findall("<#!?([0-9]+)>", self.msg_text)
+            for i in range(len(Temp)):
+                Temp[i] = int(Temp[i])
+                channel = msg.guild.get_channel_or_thread(Temp[i])
+                self.msg_text = re.sub(f"<#!?{Temp[i]}>", "チャンネル" + channel.name, self.msg_text)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, vv: VoiceVox):
