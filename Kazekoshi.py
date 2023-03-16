@@ -133,12 +133,15 @@ async def dc(ctx: commands.Context):
 
 @client.command()
 async def dict(ctx:commands.Context, *args):
-    vv.load_dictionary(ctx)
+    vv.load_dictionary(ctx.guild)
     if len(args) == 0:
         await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
         return
     elif len(args) == 1:
-        await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
+        if args[0] == "list":
+            await vv.print_dictionary(ctx)
+        else:
+            await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
         return
     elif len(args) == 2:
         if args[0] == "del":

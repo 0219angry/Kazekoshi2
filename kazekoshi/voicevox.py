@@ -9,6 +9,7 @@ from datetime import datetime
 import configparser
 import json
 import re
+import pprint
 
 # Discord.py
 import discord
@@ -116,9 +117,7 @@ class VoiceVox:
                     self.user_speaker_dict = json.load(f)
         logger.debug(self.user_speaker_dict)
     
-    # 読み上げ用の処理
-    def replace_URL(self):
-        self.msg_text = re.sub(r"https?://.*?\s|https?://.*?$", "URL", self.msg_text)
+
 
     def load_dictionary(self, guild: discord.guild):
         if os.path.isfile(f"./json/{guild.id}_dictionary.json"):
@@ -139,15 +138,25 @@ class VoiceVox:
         await ctx.channel.send(f"{ctx.author.mention} {del_word}の読みを削除しました")
         return
     
-    def replace_dictionary(self, msg: discord.Message):
-        self.load_dictionary(msg.guild)
-        read_list=[]
-        for i, one_dic in enumerate(self.word_dict.items()):
-            self.msg_text = self.msg_text.replace(one_dic[0], '{'+str(i)+'}')
-            read_list.append(one_dic[1])
-        msg_text = msg_text.format(*read_list)
+    async def print_dictionary(self, ctx: commands.Context):
+        dict_str = "```"
+        for from_word, to_word in self.word_dict.items():
+            dict_str += f"{from_word} => {to_word}\n"
+            if len(dict_str) > 2000:
+                dict_str += "```"
+                dict_embed = discord.Embed(title=f"サーバー {ctx.guild.name} の辞書",description=dict_str)
+                await ctx.channel.send(embed=dict_embed)
+                dict_str = "```"
+        dict_str += "```"
+        dict_embed = discord.Embed(title=f"サーバー {ctx.guild.name} の辞書",description=dict_str)
+
+        await ctx.channel.send(embed=dict_embed)
+        
 
 
+    # 読み上げ用の処理
+    def replace_URL(self):
+        self.msg_text = re.sub(r"https?://.*?\s|https?://.*?$", "URL", self.msg_text)
 
     def replace_mention(self, msg:discord.Message):
         if "<@" and ">" in self.msg_text:
@@ -156,6 +165,14 @@ class VoiceVox:
                 Temp[i] = int(Temp[i])
                 user = msg.guild.get_member(Temp[i])
                 self.msg_text = re.sub(f"<@!?{Temp[i]}>", "アット" + user.display_name, self.msg_text)
+
+    def replace_dictionary(self, msg: discord.Message):
+        self.load_dictionary(msg.guild)
+        read_list=[]
+        for i, one_dic in enumerate(self.word_dict.items()):
+            self.msg_text = self.msg_text.replace(one_dic[0], '{'+str(i)+'}')
+            read_list.append(one_dic[1])
+        self.msg_text = self.msg_text.format(*read_list)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, vv: VoiceVox):
