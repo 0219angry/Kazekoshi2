@@ -9,6 +9,7 @@ from datetime import datetime
 import configparser
 import json
 import re
+import pprint
 
 # Discord.py
 import discord
@@ -54,6 +55,8 @@ class VoiceVox:
         # 読み上げ用処理
         self.replace_URL()
         self.replace_mention(msg)
+
+        self.replace_dictionary(msg)
 
         if str(msg.author.id) not in list(self.user_speaker_dict.keys()):
             self.add_user_speaker(msg.author, 3)
@@ -114,6 +117,43 @@ class VoiceVox:
                     self.user_speaker_dict = json.load(f)
         logger.debug(self.user_speaker_dict)
     
+
+
+    def load_dictionary(self, guild: discord.guild):
+        if os.path.isfile(f"./json/{guild.id}_dictionary.json"):
+            with open(f"./json/{guild.id}_dictionary.json","r",encoding="UTF-8") as f:
+                self.word_dict = json.load(f)
+
+    async def add_dictionary(self,ctx: commands.Context, from_word: str, to_word: str):
+        self.word_dict[from_word] = to_word
+        with open(f"./json/{ctx.guild.id}_dictionary.json","w",encoding="UTF-8") as f:
+            f.write(json.dumps(self.word_dict,indent=4))
+        await ctx.channel.send(f"{ctx.author.mention} {from_word}の読みを{to_word}として登録しました")
+        return
+
+    async def del_dictionary(self, ctx: commands.Context, del_word: str):
+        del self.word_dict[del_word]
+        with open(f"./json/{ctx.guild.id}_dictionary.json","w",encoding="UTF-8") as f:
+            f.write(json.dumps(self.word_dict,indent=4))
+        await ctx.channel.send(f"{ctx.author.mention} {del_word}の読みを削除しました")
+        return
+    
+    async def print_dictionary(self, ctx: commands.Context):
+        dict_str = "```"
+        for from_word, to_word in self.word_dict.items():
+            dict_str += f"{from_word} => {to_word}\n"
+            if len(dict_str) > 2000:
+                dict_str += "```"
+                dict_embed = discord.Embed(title=f"サーバー {ctx.guild.name} の辞書",description=dict_str)
+                await ctx.channel.send(embed=dict_embed)
+                dict_str = "```"
+        dict_str += "```"
+        dict_embed = discord.Embed(title=f"サーバー {ctx.guild.name} の辞書",description=dict_str)
+
+        await ctx.channel.send(embed=dict_embed)
+        
+
+
     # 読み上げ用の処理
     def replace_URL(self):
         self.msg_text = re.sub(r"https?://.*?\s|https?://.*?$", "URL", self.msg_text)
@@ -125,6 +165,14 @@ class VoiceVox:
                 Temp[i] = int(Temp[i])
                 user = msg.guild.get_member(Temp[i])
                 self.msg_text = re.sub(f"<@!?{Temp[i]}>", "アット" + user.display_name, self.msg_text)
+
+    def replace_dictionary(self, msg: discord.Message):
+        self.load_dictionary(msg.guild)
+        read_list=[]
+        for i, one_dic in enumerate(self.word_dict.items()):
+            self.msg_text = self.msg_text.replace(one_dic[0], '{'+str(i)+'}')
+            read_list.append(one_dic[1])
+        self.msg_text = self.msg_text.format(*read_list)
 
 class Dropdown(discord.ui.Select):
     def __init__(self, vv: VoiceVox):
