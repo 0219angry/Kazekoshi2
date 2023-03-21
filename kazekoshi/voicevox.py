@@ -176,8 +176,8 @@ class VoiceVox:
         self.msg_text = self.msg_text.format(*read_list)
         
     def replace_channel(self, msg:discord.Message):
-            if "<#" and ">" in self.msg_text:
-                Temp = re.findall("<#!?([0-9]+)>", self.msg_text)
+        if "<#" and ">" in self.msg_text:
+            Temp = re.findall("<#!?([0-9]+)>", self.msg_text)
             for i in range(len(Temp)):
                 Temp[i] = int(Temp[i])
                 channel = msg.guild.get_channel_or_thread(Temp[i])
