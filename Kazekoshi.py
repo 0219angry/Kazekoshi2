@@ -19,7 +19,7 @@ from voicevox_core import VoicevoxCore
 
 # my module
 import kazekoshi.global_val as g
-from kazekoshi import voicevox
+from kazekoshi import voicevox,dice
 
 MAX_LOG_FILE = 5
 MAX_WAV_FILE = 10
@@ -157,9 +157,23 @@ async def dict(ctx:commands.Context, *args):
         else:
             await ctx.channel.send(f"{ctx.author.mention} !dictで不明なコマンドです")
             return
-        
-
     return
+
+@client.command()
+async def d(ctx: commands.Context, *args):
+    if len(args) == 0:
+        await ctx.reply(f"引数が少なすぎます")
+        return
+    elif len(args) == 1:
+            idice = dice.Dice(ctx, args[0])
+            await idice.create_dice()
+            return
+    else:
+        await ctx.reply(f"引数が多すぎます")
+        return
+    return
+                
+        
     
 @client.event
 async def on_message(message: discord.Message):
