@@ -19,7 +19,7 @@ from voicevox_core import VoicevoxCore
 
 # my module
 import kazekoshi.global_val as g
-from kazekoshi import voicevox,dice
+from kazekoshi import voicevox,dice,notify
 
 MAX_LOG_FILE = 5
 MAX_WAV_FILE = 10
@@ -75,10 +75,12 @@ queue_dict = defaultdict(deque)
 
 vv = voicevox.VoiceVox()
 
+notification = notify.Notify()
+
 
 @client.event
 async def on_ready():
-    logger.info("Kazekoshi v2.0 on ready")
+    logger.info(f"Kazekoshi v2.0 on ready(discord.py v{discord.__version__})")
 
 @client.command()
 async def help(ctx: commands.Context):
@@ -173,7 +175,18 @@ async def d(ctx: commands.Context, *args):
         return
     return
                 
-        
+@client.command()
+async def notify(ctx: commands.Context, *args):
+    if len(args) == 0:
+        if ctx.author.voice is None:
+            await ctx.reply(f"通知対象のチャンネルに接続してコマンドを入力してください")
+            return
+        notification.add_notify_dict(ctx.author.voice.channel,ctx.channel)
+        await ctx.send(f"{ctx.author.voice.channel.name}の接続情報を{ctx.channel.name}で通知します")   
+    else:
+        await ctx.reply(f"引数が多すぎます")
+        return
+    return
     
 @client.event
 async def on_message(message: discord.Message):
@@ -201,8 +214,23 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         await connected_channel[member.guild].send(embed=discon_embed)
         logger.info(f"auto disconnected from {before.channel}")
         connected_channel.pop(member.guild)
+        
+    # 誰もいない指定ボイスチャンネルに誰かが接続したら通知する
+    if before.channel != after.channel:
+        
+        if after.channel != None:
+            notification.load_notify_dict(member.guild)
+            if len(after.channel.members) == 1 and str(after.channel.id) in notification.notify_dict.keys():
+                name = member.nick
+                if name == None:
+                    name = member.global_name
+                    if name == None:
+                        name = member.name
+                logger.info(f"{name}({member.id}) connected to {after.channel.name}({after.channel.id})")
+                await client.get_channel(int(notification.notify_dict[str(after.channel.id)])).send(f"{name}が来たよ")
     return
     
+
 try:
     client.run(DISCORD_TOKEN)
 except:
