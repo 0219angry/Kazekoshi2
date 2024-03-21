@@ -189,6 +189,29 @@ async def notify(ctx: commands.Context, *args):
         return
     return
     
+@client.command()
+async def move(ctx: commands.Context, *args):
+    if len(args) < 2:
+        await ctx.reply(f"引数が少なすぎます")
+        return
+    elif len(args) == 2:
+        if args[0] == "All":
+            # 全員を指定VCへ移動
+            if ctx.author.voice == None:
+                await ctx.reply(f"移動させるためには移動元のボイスチャンネルに接続してください") 
+                return
+            for member in ctx.author.voice.channel.members:
+                member.move_to(args[1])
+            return
+                
+        else:
+            # ロールがついている人だけを移動
+            return
+
+    else:
+        await ctx.reply(f"引数が多すぎます")
+        return
+
 @client.event
 async def on_message(message: discord.Message):
     # COMMAND_PREFIXで始まるMessageはコマンドとして扱う
@@ -224,7 +247,6 @@ async def on_message(message: discord.Message):
     
     if message.channel in connected_channel.values() and message.guild.voice_client is not None:
         await vv.create_voice(message, SPEAKER_ID, message.guild.voice_client)
-
 
     return
 
