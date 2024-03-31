@@ -7,6 +7,7 @@ from collections import defaultdict, deque
 from logging import (DEBUG, INFO, NOTSET, FileHandler, Formatter, StreamHandler, basicConfig, getLogger)
 from datetime import datetime
 import configparser
+import re
 
 # Discord.py
 import discord
@@ -19,7 +20,7 @@ from voicevox_core import VoicevoxCore
 
 # my module
 import kazekoshi.global_val as g
-from kazekoshi import voicevox,dice,notify
+from kazekoshi import voicevox,dice,notify,weather
 
 MAX_LOG_FILE = 5
 MAX_WAV_FILE = 10
@@ -188,6 +189,29 @@ async def notify(ctx: commands.Context, *args):
         return
     return
     
+@client.command()
+async def move(ctx: commands.Context, *args):
+    if len(args) < 2:
+        await ctx.reply(f"引数が少なすぎます")
+        return
+    elif len(args) == 2:
+        if args[0] == "All":
+            # 全員を指定VCへ移動
+            if ctx.author.voice == None:
+                await ctx.reply(f"移動させるためには移動元のボイスチャンネルに接続してください") 
+                return
+            for member in ctx.author.voice.channel.members:
+                member.move_to(args[1])
+            return
+                
+        else:
+            # ロールがついている人だけを移動
+            return
+
+    else:
+        await ctx.reply(f"引数が多すぎます")
+        return
+
 @client.event
 async def on_message(message: discord.Message):
     # COMMAND_PREFIXで始まるMessageはコマンドとして扱う
@@ -198,9 +222,31 @@ async def on_message(message: discord.Message):
     if message.author.bot:
         return
     
+    if message.content == "あつい":
+        wth = weather.Weather()
+        await wth.is_atsui(message)
+    if message.content == "あつくない":
+        wth = weather.Weather()
+        await wth.is_atsukunai(message)
+    if message.content == "さむい":
+        wth = weather.Weather()
+        await wth.is_samui(message)
+    if message.content == "さむくない":
+        wth = weather.Weather()
+        await wth.is_samukunai(message)
+    
+    kanji_shukatsu = re.compile(".*就.*活.*")
+    hiragana_shukatsu = re.compile(".*し.*ゅ.*う.*か.*つ.*")
+    if re.fullmatch(kanji_shukatsu,message.content):
+        logger.info("shukatsu detected!!!")
+        await message.channel.send("就活の話はしないでください😡")
+    if re.fullmatch(hiragana_shukatsu,message.content):
+        logger.info("shukatsu detected!!!")
+        await message.channel.send("就活の話はしないでください😡")
+        
+    
     if message.channel in connected_channel.values() and message.guild.voice_client is not None:
         await vv.create_voice(message, SPEAKER_ID, message.guild.voice_client)
-
 
     return
 
