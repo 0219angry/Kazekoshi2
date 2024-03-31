@@ -20,7 +20,7 @@ from voicevox_core import VoicevoxCore
 
 # my module
 import kazekoshi.global_val as g
-from kazekoshi import voicevox,dice,notify,weather
+from kazekoshi import voicevox,dice,notify,weather,hmonitor
 
 MAX_LOG_FILE = 5
 MAX_WAV_FILE = 10
@@ -275,7 +275,74 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
                 logger.info(f"{name}({member.id}) connected to {after.channel.name}({after.channel.id})")
                 await client.get_channel(int(notification.notify_dict[str(after.channel.id)])).send(f"{name}が来たよ")
     return
+
+@client.event
+async def on_presence_update(before: discord.Member, after: discord.Member):
+    ONLINE = discord.Status.online # オンライン(みどり)
+    OFFLINE = discord.Status.offline # オフライン(はいいろ)
+    IDLE = discord.Status.idle # 退席中(きいろ)
+    DND = discord.Status.dnd # 取り込み中(あか)
+    INVISIBLE = discord.Status.invisible # オンラインを隠す(はいいろ)
     
+    
+    if before.status == OFFLINE:
+        if after.status == OFFLINE:
+            pass
+        elif after.status == ONLINE:
+            pass
+        elif after.status == IDLE:
+            pass
+        elif after.status == DND:
+            pass
+        else:
+            pass
+    elif before.status == ONLINE:
+        if after.status == OFFLINE:
+            pass
+        elif after.status == ONLINE:
+            pass
+        elif after.status == IDLE:
+            pass
+        elif after.status == DND:
+            pass
+        else:
+            pass
+    elif before.status == IDLE:
+        if after.status == OFFLINE:
+            pass
+        elif after.status == ONLINE:
+            pass
+        elif after.status == IDLE:
+            pass
+        elif after.status == DND:
+            pass
+        else:
+            pass
+    elif before.status == DND:
+        if after.status == OFFLINE:
+            pass
+        elif after.status == ONLINE:
+            pass
+        elif after.status == IDLE:
+            pass
+        elif after.status == DND:
+            pass
+        else:
+            pass
+    else:
+        if after.status == OFFLINE:
+            pass
+        elif after.status == ONLINE:
+            pass
+        elif after.status == IDLE:
+            pass
+        elif after.status == DND:
+            pass
+        else:
+            pass
+    
+    
+    return
 
 try:
     client.run(DISCORD_TOKEN)
